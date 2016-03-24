@@ -28,3 +28,6 @@ Godeps/*
 
 *.out
 coverage.html
+
+tmpsite62
+site62

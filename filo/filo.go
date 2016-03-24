@@ -5,26 +5,35 @@ import (
 	"syscall"
 
 	"bazil.org/fuse"
-	"golang.org/x/net/context"
-
 	"github.com/thrisp/wSCP/xandle"
+	"github.com/thrisp/wSCP/xandle/monitor"
 	"github.com/thrisp/wSCP/xandle/window"
+	"golang.org/x/net/context"
 )
 
+//
 type Filo interface {
 	Key() string
-	Init(xandle.Xandle, window.Window)
+	Init(Header)
 	Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error
 	Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error
 	Size() uint64
 }
 
+type Header interface {
+	Xandle() xandle.Xandle
+	SetXandle(xandle.Xandle)
+	Window() window.Window
+	SetWindow(window.Window)
+	Monitor() monitor.Monitor
+	SetMonitor(monitor.Monitor)
+}
+
 type filo struct {
-	xandle.Xandle
-	Window window.Window
-	key    string
-	read   FileRead
-	write  FileWrite
+	h     Header
+	key   string
+	read  FileRead
+	write FileWrite
 	sync.RWMutex
 }
 
@@ -43,9 +52,8 @@ func (f *filo) Key() string {
 }
 
 // Init providse A Xandle and a Window to the filo.
-func (f *filo) Init(x xandle.Xandle, w window.Window) {
-	f.Xandle = x
-	f.Window = w
+func (f *filo) Init(h Header) {
+	f.h = h
 }
 
 // Read allows filo to satisfy the fuse/fs HandleReader interface.
@@ -55,7 +63,7 @@ func (f *filo) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadR
 	}
 	f.RLock()
 	defer f.RUnlock()
-	res := f.read(f.Window, f.Xandle)
+	res := f.read(f.h)
 	resp.Data = res.Bytes()
 	return nil
 }
@@ -67,7 +75,7 @@ func (f *filo) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wri
 	}
 	f.Lock()
 	defer f.Unlock()
-	wrote, err := f.write(f.Window, f.Xandle, req.Data)
+	wrote, err := f.write(f.h, req.Data)
 	resp.Size = wrote
 	return err
 }
@@ -75,7 +83,7 @@ func (f *filo) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.Wri
 // Size return a uint64 measure of the filo size in bytes.
 func (f *filo) Size() uint64 {
 	if f.read != nil {
-		res := f.read(f.Window, f.Xandle)
+		res := f.read(f.h)
 		return uint64(res.Len())
 	}
 	return 0

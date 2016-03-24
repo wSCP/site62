@@ -7,27 +7,28 @@ import (
 	"golang.org/x/net/context"
 
 	"bazil.org/fuse"
+	"github.com/thrisp/wSCP/site62/filo"
 )
 
+//
 type Node interface {
 	Header
 	Kind
 	Attr(ctx context.Context, a *fuse.Attr) error
-	Path() string
-	SetPath(string)
-	Name() string
-	SetName(string)
-	Mode() os.FileMode
-	SetMode(os.FileMode)
-	Nio() string
+	NodePath
+	NodeName
+	NodeMode
 	NodeCopier
 	NodeDirectory
+	filo.Filo
 	Aliaser
 	Tree
 }
 
+//
 type NodeKind int
 
+//
 func (n NodeKind) String() string {
 	switch n {
 	case Directory:
@@ -36,10 +37,13 @@ func (n NodeKind) String() string {
 		return "file"
 	case Fileio:
 		return "file-io"
+	case Socket:
+		return "socket"
 	}
 	return "unknown"
 }
 
+//
 func stringNodeKind(s string) NodeKind {
 	switch strings.ToLower(s) {
 	case "directory":
@@ -48,6 +52,8 @@ func stringNodeKind(s string) NodeKind {
 		return File
 	case "file-io":
 		return Fileio
+	case "socket":
+		return Socket
 	}
 	return Unknown
 }
@@ -57,22 +63,26 @@ const (
 	Directory
 	File
 	Fileio
+	Socket
 )
 
+//
 type Kind interface {
 	Is() NodeKind
-	DirEntry(name string) fuse.Dirent
+	Entry(name string) fuse.Dirent
 }
 
 type kind struct {
 	k NodeKind
 }
 
+//
 func (k kind) Is() NodeKind {
 	return k.k
 }
 
-func (k kind) DirEntry(name string) fuse.Dirent {
+//
+func (k kind) Entry(name string) fuse.Dirent {
 	switch k.k {
 	case Directory:
 		return entry(name, fuse.DT_Dir)
@@ -80,6 +90,8 @@ func (k kind) DirEntry(name string) fuse.Dirent {
 		return entry(name, fuse.DT_File)
 	case Fileio:
 		return entry(name, fuse.DT_File)
+	case Socket:
+		return entry(name, fuse.DT_Socket)
 	}
 	return entry(name, fuse.DT_Unknown)
 }
@@ -87,21 +99,23 @@ func (k kind) DirEntry(name string) fuse.Dirent {
 type node struct {
 	Header
 	Kind
-	path, name, nio string
-	mode            os.FileMode
+	path, name string
+	mode       os.FileMode
+	filo.Filo
 	Aliaser
 	Tree
 }
 
-func newNode(nk NodeKind, path, name, nio string, mode os.FileMode, a Aliaser, h Node, t ...Node) Node {
+// New returns a Node instance fromt the provided parameters..
+func New(k NodeKind, path, name string, mode os.FileMode, f filo.Filo, a Aliaser, head Node, tail ...Node) Node {
 	n := &node{
-		Header:  NewHeader(nil, nil),
-		Kind:    kind{nk},
+		Header:  &EmptyHeader,
+		Kind:    kind{k},
 		path:    path,
 		name:    name,
-		nio:     nio,
+		Filo:    f,
 		Aliaser: a,
-		Tree:    NewTree(h, t...),
+		Tree:    NewTree(head, tail...),
 	}
 	n.SetMode(mode)
 	return n
@@ -113,48 +127,68 @@ func (n *node) Attr(ctx context.Context, a *fuse.Attr) error {
 	return nil
 }
 
-//
+// An interface for getting and setting a string path for a node.
+type NodePath interface {
+	Path() string
+	SetPath(string)
+}
+
+// Path returns the path containing the node.
 func (n *node) Path() string {
 	return n.path
 }
 
-//
+// SetPath sets the path containing the node.
 func (n *node) SetPath(p string) {
 	n.path = p
 }
 
-//
+// An interface managing a node name.
+type NodeName interface {
+	Name() string
+	SetName(string)
+}
+
+// Name returns the name of the node.
 func (n *node) Name() string {
 	return n.name
 }
 
-//
+// SetName sets the node name by the provided string.
 func (n *node) SetName(nm string) {
 	n.name = nm
 }
 
-//
+// An interface for setting & getting a node mode.
+type NodeMode interface {
+	Mode() os.FileMode
+	SetMode(os.FileMode)
+}
+
+// Mode returns a node's mode as os.Filemode
 func (n *node) Mode() os.FileMode {
 	return n.mode
 }
 
-//
+// SetMode takes os.FileMode input to set the node mode. os.ModeDir is set for
+// directories here.
 func (n *node) SetMode(m os.FileMode) {
-	if n.Is() == Directory {
+	switch n.Is() {
+	case Directory:
 		m = (os.ModeDir | m)
+	case Socket:
+		m = (os.ModeSocket | m)
 	}
 	n.mode = m
 }
 
-//
-func (n *node) Nio() string {
-	return n.nio
-}
-
+// An interface providing methods to copy a node.
 type NodeCopier interface {
 	Copy() Node
 }
 
+// Copy returns a copy of the node. Notable default is the replacement of the
+// Aliaser with one that provides no alias.
 func (n *node) Copy() Node {
 	var nn node = *n
 	nn.Aliaser = NotAliased

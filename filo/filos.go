@@ -15,7 +15,7 @@ func Get(key string) Filo {
 	if f, exists := has[key]; exists {
 		return f
 	}
-	return nil
+	return NilFilo
 }
 
 func Set(f Filo) {

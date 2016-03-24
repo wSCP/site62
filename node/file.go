@@ -1,41 +1,43 @@
 package node
 
 import (
+	"fmt"
+	"net"
+	"os"
+	"path/filepath"
+
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
-	"github.com/thrisp/wSCP/site62/filo"
+	"github.com/davecgh/go-spew/spew"
 	"golang.org/x/net/context"
 )
 
 //
 type NodeFile interface {
-	InitializeFile(path string, head Node) NodeFile
+	InitializeFile(path string, head Node)
 	Node
-	filo.Filo
 }
 
 type nodeFile struct {
 	Node
-	filo.Filo
 }
 
-// NewNodeFile
+// NewNodeFile returns a NodeFile wrapping the provided Node.
 func NewNodeFile(n Node) NodeFile {
-	return &nodeFile{n, filo.Get(n.Nio())}
+	return &nodeFile{n}
 }
 
 // Initialize prepares the NodeFile from the given string path and head Node.
-func (n *nodeFile) InitializeFile(path string, head Node) NodeFile {
-	rf := n
-	rf.SetPath(path)
-	rf.SetHead(head)
-	rf.SetXandle(head.Xandle())
-	rf.SetWindow(head.Window())
-	rf.Filo.Init(rf.Xandle(), rf.Window())
-	return rf
+func (n *nodeFile) InitializeFile(path string, head Node) {
+	n.SetPath(path)
+	n.SetHead(head)
+	n.SetXandle(head.Xandle())
+	n.SetWindow(head.Window())
+	n.Init(n.CurrentHeader())
+
 }
 
-// Attr satisfies the fuse/fs Node interface for a nodeFile instance.
+// Attr satisfies the fuse/fs Node interface for NodeFile.
 func (n *nodeFile) Attr(ctx context.Context, a *fuse.Attr) error {
 	a.Mode = n.Mode()
 	if n.Is() != Fileio {
@@ -46,8 +48,35 @@ func (n *nodeFile) Attr(ctx context.Context, a *fuse.Attr) error {
 
 // Open satisfies the fuse/fs NodeOpener interface for a nodeFile instance.
 func (n *nodeFile) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
-	if n.Is() == Fileio {
+	switch n.Is() {
+	case Fileio:
 		resp.Flags = resp.Flags << fuse.OpenDirectIO
+	case Socket:
+		if n.Is() == Socket {
+			fp := filepath.Join(n.Path(), n.Name())
+			l, err := net.ListenUnix("unix", &net.UnixAddr{fp, "unix"})
+			if err != nil {
+				panic(err)
+			}
+			defer os.Remove(fp)
+
+			go func() {
+				for {
+					conn, err := l.AcceptUnix()
+					if err != nil {
+						panic(err)
+					}
+					var buf [1024]byte
+					n, err := conn.Read(buf[:])
+					if err != nil {
+						panic(err)
+					}
+					fmt.Printf("%s\n", string(buf[:n]))
+					conn.Close()
+				}
+			}()
+		}
+		spew.Dump(ctx, req)
 	}
 	resp.Flags = resp.Flags << fuse.OpenNonSeekable
 	return n, nil

@@ -1,16 +1,26 @@
 package node
 
-type Tree interface {
+type Treehead interface {
 	Head() Node
 	SetHead(Node)
+}
+
+type Treetail interface {
 	Tail() []Node
 	SetTail(...Node)
+}
+
+type Tree interface {
+	Treehead
+	Treetail
 }
 
 type tree struct {
 	head Node
 	tail []Node
 }
+
+var EmptyTree tree = tree{nil, make([]Node, 0)}
 
 func NewTree(h Node, t ...Node) Tree {
 	tr := &tree{

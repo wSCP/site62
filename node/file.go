@@ -1,14 +1,8 @@
 package node
 
 import (
-	"fmt"
-	"net"
-	"os"
-	"path/filepath"
-
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
-	"github.com/davecgh/go-spew/spew"
 	"golang.org/x/net/context"
 )
 
@@ -34,7 +28,6 @@ func (n *nodeFile) InitializeFile(path string, head Node) {
 	n.SetXandle(head.Xandle())
 	n.SetWindow(head.Window())
 	n.Init(n.CurrentHeader())
-
 }
 
 // Attr satisfies the fuse/fs Node interface for NodeFile.
@@ -51,32 +44,6 @@ func (n *nodeFile) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.O
 	switch n.Is() {
 	case Fileio:
 		resp.Flags = resp.Flags << fuse.OpenDirectIO
-	case Socket:
-		if n.Is() == Socket {
-			fp := filepath.Join(n.Path(), n.Name())
-			l, err := net.ListenUnix("unix", &net.UnixAddr{fp, "unix"})
-			if err != nil {
-				panic(err)
-			}
-			defer os.Remove(fp)
-
-			go func() {
-				for {
-					conn, err := l.AcceptUnix()
-					if err != nil {
-						panic(err)
-					}
-					var buf [1024]byte
-					n, err := conn.Read(buf[:])
-					if err != nil {
-						panic(err)
-					}
-					fmt.Printf("%s\n", string(buf[:n]))
-					conn.Close()
-				}
-			}()
-		}
-		spew.Dump(ctx, req)
 	}
 	resp.Flags = resp.Flags << fuse.OpenNonSeekable
 	return n, nil

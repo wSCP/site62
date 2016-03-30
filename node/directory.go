@@ -23,6 +23,10 @@ func (n *node) InitializeDir(path string, head Node) {
 	n.SetWindow(head.Window())
 }
 
+func (n *node) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
+	return n, nil
+}
+
 // Lookup satisfies the fuse/fs NodeLookuper interface for a node.
 func (n *node) Lookup(ctx context.Context, req *fuse.LookupRequest, resp *fuse.LookupResponse) (fs.Node, error) {
 	var requested string = req.Name
@@ -85,6 +89,6 @@ func (n *node) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 }
 
 //func (n *node) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (fs.Node, fs.Handle, error) {
-//	spew.Dump(req)
-//	return nil, nil, errors.New("NOPE")
+//spew.Dump(req)
+//return nil, nil, nil //errors.New("NOPE")
 //}

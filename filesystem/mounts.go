@@ -1,49 +1,53 @@
 package filesystem
 
 import (
-	"github.com/thrisp/wSCP/site62/node"
+	"errors"
+
+	"github.com/wSCP/site62/node"
 )
-
-type MountsKind int
-
-const (
-	unknown MountsKind = iota
-	monitors
-	tags
-	clients
-)
-
-func (mk MountsKind) String() string {
-	switch mk {
-	case monitors:
-		return "MONITORS"
-	case tags:
-		return "TAGS"
-	case clients:
-		return "CLIENTS"
-	}
-	return "UNKNOWN"
-}
 
 type Mounts interface {
 	Kind() string
+	At() string
 	Block() node.Node
 }
 
 type mounts struct {
-	kind  MountsKind
+	kind  string
+	at    string
 	block node.Node
 }
 
-func (f *FS) NewMounts(mk MountsKind, b node.Node) {
-	m := &mounts{mk, b}
-	f.mounts = append(f.mounts, m)
+func (f *FS) NewMounts(k, at string, b node.Node) {
+	m := &mounts{k, at, b}
+	f.Mountable = append(f.Mountable, m)
 }
 
 func (m *mounts) Kind() string {
-	return m.kind.String()
+	return m.kind
+}
+
+func (m *mounts) At() string {
+	return m.at
 }
 
 func (m *mounts) Block() node.Node {
 	return m.block
+}
+
+var Unattachable = errors.New("unattachable")
+
+func attach(m Mounts, to node.Node) error {
+	if m.At() == to.Name() {
+		to.SetTail(m.Block())
+		return nil
+	}
+	for _, t := range to.Tail() {
+		attach(m, t)
+	}
+	return Unattachable
+}
+
+func Attach(m Mounts, to node.Node) error {
+	return attach(m, to)
 }

@@ -5,9 +5,9 @@ import (
 	"syscall"
 
 	"bazil.org/fuse"
-	"github.com/thrisp/wSCP/xandle"
-	"github.com/thrisp/wSCP/xandle/monitor"
-	"github.com/thrisp/wSCP/xandle/window"
+	"github.com/wSCP/xandle"
+	"github.com/wSCP/xandle/monitor"
+	"github.com/wSCP/xandle/window"
 	"golang.org/x/net/context"
 )
 
@@ -20,6 +20,7 @@ type Filo interface {
 	Size() uint64
 }
 
+// A local interface mirroring node.Header.
 type Header interface {
 	Xandle() xandle.Xandle
 	SetXandle(xandle.Xandle)

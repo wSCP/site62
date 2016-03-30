@@ -7,7 +7,7 @@ import (
 	"golang.org/x/net/context"
 
 	"bazil.org/fuse"
-	"github.com/thrisp/wSCP/site62/filo"
+	"github.com/wSCP/site62/filo"
 )
 
 //
@@ -176,8 +176,6 @@ func (n *node) SetMode(m os.FileMode) {
 	switch n.Is() {
 	case Directory:
 		m = (os.ModeDir | m)
-	case Socket:
-		m = (os.ModeSocket | m)
 	}
 	n.mode = m
 }

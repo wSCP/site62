@@ -44,8 +44,10 @@ func looping(f *FS) {
 			select {
 			case <-f.Pre:
 				<-f.Post
+			case <-f.Quit:
+				os.Exit(0)
 			case sig := <-f.Sys:
-				f.SignalHandler(sig)
+				f.signalHandler(sig)
 			}
 		}
 	}()

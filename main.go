@@ -6,17 +6,14 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/thrisp/wSCP/site62/filesystem"
+	"github.com/wSCP/site62/filesystem"
 )
 
 var c *configuration
 
 type configuration struct {
 	mountPoint string
-	monitors   bool
-	tags       bool
-	clients    bool
-	fns        []filesystem.ConfigureFn
+	fns        []filesystem.Config
 }
 
 func (c *configuration) parse() {
@@ -25,23 +22,11 @@ func (c *configuration) parse() {
 		l.Fatal(err)
 	}
 	c.fns = append(c.fns, filesystem.MountPoint(path))
-	if c.monitors {
-		c.fns = append(c.fns, filesystem.Monitors)
-	}
-	if c.tags {
-		//c.fns = append(c.fns, filesystem.Tags)
-	}
-	if c.clients {
-		c.fns = append(c.fns, filesystem.Clients)
-	}
 }
 
 func init() {
 	c = &configuration{}
 	flag.StringVar(&c.mountPoint, "mount", "/tmp/site62", "A string path to mount the file system to.")
-	flag.BoolVar(&c.monitors, "monitors", false, "Specify the file system to mount access to monitors")
-	flag.BoolVar(&c.tags, "tags", false, "Specify the file system to mount access to tags")
-	flag.BoolVar(&c.clients, "clients", false, "Specify the file system to mount access to clients")
 	flag.Parse()
 	c.parse()
 }

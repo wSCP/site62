@@ -4,9 +4,7 @@ var has filos
 
 func init() {
 	has = make(filos)
-	for _, f := range builtIns {
-		Set(f)
-	}
+	Set(builtIns...)
 }
 
 type filos map[string]Filo
@@ -18,6 +16,8 @@ func Get(key string) Filo {
 	return NilFilo
 }
 
-func Set(f Filo) {
-	has[f.Key()] = f
+func Set(fs ...Filo) {
+	for _, f := range fs {
+		has[f.Key()] = f
+	}
 }

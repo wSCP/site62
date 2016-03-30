@@ -1,44 +1,54 @@
 package filesystem
 
 import (
+	"log"
 	"os"
 	"syscall"
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
-	"github.com/thrisp/wSCP/site62/node"
-	"github.com/thrisp/wSCP/xandle"
+	"github.com/wSCP/site62/node"
+	"github.com/wSCP/xandle"
 )
 
 // Holds the primary file system data.
 type FS struct {
-	*Configuration
+	*log.Logger
+	*settings
+	Configuration
 	*loop
 	xandle.Xandle
 	root node.Node
 }
 
-//
-func New(c ...ConfigureFn) *FS {
-	return &FS{
-		Configuration: NewConfiguration(c...),
-		loop:          newLoop(),
+// New returns an instance of FS with the provided Config.
+func New(c ...Config) *FS {
+	f := &FS{
+		Logger:   log.New(os.Stderr, "site62 - filesystem: ", log.Lmicroseconds|log.Llongfile),
+		settings: newSettings(),
+		loop:     newLoop(),
 	}
+	f.Configuration = newConfiguration(f, c...)
+	return f
 }
 
 // Root satisfies the the fuse/fs FS interface.
 func (f *FS) Root() (fs.Node, error) {
 	if f.root == nil {
 		f.root = f.RootFn(f.Xandle, f.RootPath)
-		for _, n := range f.mounts {
-			f.root.SetTail(n.Block())
+		for _, m := range f.Mountable {
+			err := Attach(m, f.root)
+			if err != nil {
+				f.Printf("unable to attach mounts %s to any %s in filesystem", m.Kind(), m.At())
+			}
 		}
 	}
 	return f.root, nil
 }
 
+//
 func (f *FS) Mount() error {
-	if !f.configured {
+	if !f.Configured() {
 		if confErr := f.Configure(); confErr != nil {
 			return confErr
 		}
@@ -64,7 +74,7 @@ func (f *FS) Mount() error {
 	return nil
 }
 
-func (f *FS) SignalHandler(sig os.Signal) {
+func (f *FS) signalHandler(sig os.Signal) {
 	switch sig {
 	case syscall.SIGKILL, syscall.SIGINT, syscall.SIGTERM:
 		fuse.Unmount(f.RootPath)

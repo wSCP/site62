@@ -2,18 +2,18 @@ package node
 
 import (
 	"bazil.org/fuse"
-	"github.com/wSCP/xandle"
+	"github.com/wSCP/site62/state"
 )
 
 type AliasFindFn func(string, Node, Node) (bool, Node)
 
-type AliasListFn func(Node, xandle.Xandle) []fuse.Dirent
+type AliasListFn func(Node, state.State) []fuse.Dirent
 
 type Aliaser interface {
 	AliasKey() string
 	Aliased() bool
 	Find(string, Node, Node) (bool, Node)
-	List(Node, xandle.Xandle) []fuse.Dirent
+	List(Node, state.State) []fuse.Dirent
 }
 
 type aliaser struct {
@@ -39,8 +39,8 @@ func (a *aliaser) Find(requested string, h Node, n Node) (bool, Node) {
 	return a.find(requested, h, n)
 }
 
-func (a *aliaser) List(n Node, x xandle.Xandle) []fuse.Dirent {
-	return a.list(n, x)
+func (a *aliaser) List(n Node, s state.State) []fuse.Dirent {
+	return a.list(n, s)
 }
 
 type aliasers map[string]Aliaser

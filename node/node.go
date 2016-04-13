@@ -7,28 +7,39 @@ import (
 	"golang.org/x/net/context"
 
 	"bazil.org/fuse"
+	"bazil.org/fuse/fs"
 	"github.com/wSCP/site62/filo"
+	"github.com/wSCP/site62/state"
 )
 
-//
+// The Node interface is the primary set of interfaces for representing files and
+// directories within a site62 filesystem.
 type Node interface {
-	Header
 	Kind
-	Attr(ctx context.Context, a *fuse.Attr) error
+	fs.Node
+	NodeState
 	NodePath
 	NodeName
+	Aliaser
 	NodeMode
 	NodeCopier
 	NodeDirectory
 	filo.Filo
-	Aliaser
 	Tree
 }
 
 //
 type NodeKind int
 
-//
+const (
+	Unknown NodeKind = iota
+	Directory
+	File
+	Fileio
+	//Socket
+)
+
+// String returns a string for a NodeKind
 func (n NodeKind) String() string {
 	switch n {
 	case Directory:
@@ -37,14 +48,14 @@ func (n NodeKind) String() string {
 		return "file"
 	case Fileio:
 		return "file-io"
-	case Socket:
-		return "socket"
+		//case Socket:
+		//	return "socket"
 	}
 	return "unknown"
 }
 
-//
-func stringNodeKind(s string) NodeKind {
+// StringNodeKind takes a string and returns a NodeKind
+func StringNodeKind(s string) NodeKind {
 	switch strings.ToLower(s) {
 	case "directory":
 		return Directory
@@ -52,21 +63,13 @@ func stringNodeKind(s string) NodeKind {
 		return File
 	case "file-io":
 		return Fileio
-	case "socket":
-		return Socket
+		//case "socket":
+		//	return Socket
 	}
 	return Unknown
 }
 
-const (
-	Unknown NodeKind = iota
-	Directory
-	File
-	Fileio
-	Socket
-)
-
-//
+// The Kind interface orients a node as directory or file.
 type Kind interface {
 	Is() NodeKind
 	Entry(name string) fuse.Dirent
@@ -81,7 +84,7 @@ func (k kind) Is() NodeKind {
 	return k.k
 }
 
-//
+// Entry takes a string and return a fuse.Dirent.
 func (k kind) Entry(name string) fuse.Dirent {
 	switch k.k {
 	case Directory:
@@ -90,14 +93,14 @@ func (k kind) Entry(name string) fuse.Dirent {
 		return entry(name, fuse.DT_File)
 	case Fileio:
 		return entry(name, fuse.DT_File)
-	case Socket:
-		return entry(name, fuse.DT_Socket)
+		//case Socket:
+		//	return entry(name, fuse.DT_Socket)
 	}
 	return entry(name, fuse.DT_Unknown)
 }
 
 type node struct {
-	Header
+	state state.State
 	Kind
 	path, name string
 	mode       os.FileMode
@@ -109,7 +112,7 @@ type node struct {
 // New returns a Node instance fromt the provided parameters..
 func New(k NodeKind, path, name string, mode os.FileMode, f filo.Filo, a Aliaser, head Node, tail ...Node) Node {
 	n := &node{
-		Header:  &EmptyHeader,
+		state:   nil,
 		Kind:    kind{k},
 		path:    path,
 		name:    name,
@@ -121,13 +124,26 @@ func New(k NodeKind, path, name string, mode os.FileMode, f filo.Filo, a Aliaser
 	return n
 }
 
-// Attr satisfies the fuse/fs Node interface for Node.
+// Attr satisfies the fuse/fs.Node interface for Node.
 func (n *node) Attr(ctx context.Context, a *fuse.Attr) error {
 	a.Mode = n.Mode()
 	return nil
 }
 
-// An interface for getting and setting a string path for a node.
+type NodeState interface {
+	Current() state.State
+	SetState(state.State)
+}
+
+func (n *node) Current() state.State {
+	return n.state
+}
+
+func (n *node) SetState(s state.State) {
+	n.state = s
+}
+
+// NodePath is an interface for getting and setting a string path for a node.
 type NodePath interface {
 	Path() string
 	SetPath(string)
@@ -143,7 +159,7 @@ func (n *node) SetPath(p string) {
 	n.path = p
 }
 
-// An interface managing a node name.
+// NodeName is an interface managing a node string name.
 type NodeName interface {
 	Name() string
 	SetName(string)
@@ -159,7 +175,7 @@ func (n *node) SetName(nm string) {
 	n.name = nm
 }
 
-// An interface for setting & getting a node mode.
+// NodeMode is an interface for setting & getting os.FileMode for a node.
 type NodeMode interface {
 	Mode() os.FileMode
 	SetMode(os.FileMode)
@@ -180,7 +196,7 @@ func (n *node) SetMode(m os.FileMode) {
 	n.mode = m
 }
 
-// An interface providing methods to copy a node.
+// NodeCopier is an interface providing methods to copy a node.
 type NodeCopier interface {
 	Copy() Node
 }

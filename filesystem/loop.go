@@ -25,18 +25,17 @@ func newLoop() *loop {
 }
 
 func looping(f *FS) {
+	x := f.state
+
 	go func() {
-		f.Handle(f.Conn(), f.Pre, f.Post, f.Quit)
+		x.Manage(x.Conn(), f.Pre, f.Post, f.Quit)
 	}()
 
 	signal.Notify(
 		f.Sys,
 		syscall.SIGINT,
 		syscall.SIGKILL,
-		//syscall.SIGHUP,
 		syscall.SIGTERM,
-		//syscall.SIGCHLD,
-		//syscall.SIGPIPE,
 	)
 
 	go func() {

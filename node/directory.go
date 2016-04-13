@@ -11,16 +11,14 @@ import (
 //
 type NodeDirectory interface {
 	InitializeDir(path string, head Node)
-	Lookup(ctx context.Context, req *fuse.LookupRequest, resp *fuse.LookupResponse) (fs.Node, error)
-	ReadDirAll(ctx context.Context) ([]fuse.Dirent, error)
+	fs.NodeRequestLookuper
+	fs.HandleReadDirAller
 }
 
 //
 func (n *node) InitializeDir(path string, head Node) {
 	n.SetPath(path)
-	n.SetHead(head)
-	n.SetXandle(head.Xandle())
-	n.SetWindow(head.Window())
+	n.SetState(head.Current())
 }
 
 func (n *node) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
@@ -53,7 +51,7 @@ func (n *node) Lookup(ctx context.Context, req *fuse.LookupRequest, resp *fuse.L
 				case Directory:
 					nn.InitializeDir(fp, n)
 					return nn, nil
-				case File, Fileio, Socket:
+				case File, Fileio: //, Socket:
 					f := NewNodeFile(nn)
 					f.InitializeFile(fp, n)
 					return f, nil
@@ -79,7 +77,7 @@ func (n *node) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	if len(tail) > 0 {
 		for _, nn := range n.Tail() {
 			if nn.Aliased() {
-				ret = append(ret, nn.List(nn, n.Xandle())...)
+				ret = append(ret, nn.List(nn, n.Current())...)
 			} else {
 				ret = append(ret, nn.Entry(nn.Name()))
 			}

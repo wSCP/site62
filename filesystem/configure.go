@@ -1,12 +1,15 @@
 package filesystem
 
 import (
-	"path/filepath"
+	"log"
+	"os"
 	"sort"
 
-	ws "github.com/wSCP/site62/modules/windows"
+	we "github.com/wSCP/site62/extensions/windows"
 	"github.com/wSCP/site62/node"
+	"github.com/wSCP/site62/state"
 	"github.com/wSCP/xandle"
+	"github.com/wSCP/xandle/x"
 )
 
 type ConfigFn func(*FS) error
@@ -117,34 +120,15 @@ func (c *configuration) Configured() bool {
 
 var builtIns = []Config{
 	config{1000, DefaultMountPoint},
-	config{1001, DefaultXandle},
+	config{1001, DefaultState},
 	config{1002, DefaultRootFn},
-	config{50, windows},
+	config{1003, DefaultLogger},
+	config{1004, windows},
 }
 
 func DefaultMountPoint(f *FS) error {
 	if f.RootPath == "" {
 		f.RootPath = "/tmp/site62"
-	}
-	return nil
-}
-
-func DefaultXandle(f *FS) error {
-	if f.Xandle == nil {
-		es := filepath.Join(f.RootPath, "event")
-		x, err := xandle.New("", es)
-		if err != nil {
-			return err
-		}
-		f.Xandle = x
-		return nil
-	}
-	return nil
-}
-
-func DefaultRootFn(f *FS) error {
-	if f.RootFn == nil {
-		f.RootFn = node.NewRoot
 	}
 	return nil
 }
@@ -159,7 +143,50 @@ func MountPoint(path string) Config {
 	}
 }
 
+func defaultX() x.Handle {
+	//es := filepath.Join(f.RootPath, "event")
+	h, err := x.New("")
+	if err != nil {
+		panic(err)
+	}
+	return h
+}
+
+func DefaultState(f *FS) error {
+	if f.state == nil {
+		f.state = state.DefaultStateFn(xandle.New(defaultX()))
+		return nil
+	}
+	return nil
+}
+
+func DefaultRootFn(f *FS) error {
+	if f.RootFn == nil {
+		f.RootFn = node.NewRoot
+	}
+	return nil
+}
+
+func DefaultLogger(f *FS) error {
+	if f.Logger == nil {
+		f.Logger = log.New(os.Stderr, "site62:fs: ", log.Lmicroseconds|log.Llongfile)
+	}
+	return nil
+}
+
+func Logger(l *log.Logger) Config {
+	return config{
+		50,
+		func(f *FS) error {
+			f.Logger = l
+			return nil
+		},
+	}
+}
+
 func windows(f *FS) error {
-	f.NewMounts("windows", "/", ws.WindowsBlock.Copy())
+	f.NewMounts("windows", "/", we.Block.Copy())
+	s := f.state
+	s.Extend(we.New(s.Conn(), s.Root()))
 	return nil
 }

@@ -4,28 +4,22 @@ import (
 	"os"
 
 	"github.com/wSCP/site62/filo"
-	"github.com/wSCP/xandle"
+	"github.com/wSCP/site62/state"
 )
 
-func NewRoot(x xandle.Xandle, path string) Node {
+func NewRoot(s state.State, path string) Node {
 	r := &Root
-	r.SetXandle(x)
+	r.SetState(s)
 	r.SetPath(path)
 	return r
 }
 
 var Root node = node{
-	Header:  &EmptyHeader,
 	Kind:    kind{Directory},
 	name:    "/",
 	mode:    os.ModeDir | 0700,
 	Aliaser: NotAliased,
-	Tree: NewTree(nil, BaseDir("root", 0700,
-		BaseDir("geometry", 0700,
-			BaseFile("width", 0400, "root_width"),
-			BaseFile("height", 0400, "root_height"),
-		)),
-	),
+	Tree:    NewTree(nil),
 }
 
 func BaseNode(k NodeKind, nm, flo string, a Aliaser, m os.FileMode, t ...Node) Node {

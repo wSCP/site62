@@ -8,7 +8,7 @@ import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
 	"github.com/wSCP/site62/node"
-	"github.com/wSCP/xandle"
+	"github.com/wSCP/site62/state"
 )
 
 // Holds the primary file system data.
@@ -17,14 +17,13 @@ type FS struct {
 	*settings
 	Configuration
 	*loop
-	xandle.Xandle
-	root node.Node
+	state state.State
+	root  node.Node
 }
 
 // New returns an instance of FS with the provided Config.
 func New(c ...Config) *FS {
 	f := &FS{
-		Logger:   log.New(os.Stderr, "site62 - filesystem: ", log.Lmicroseconds|log.Llongfile),
 		settings: newSettings(),
 		loop:     newLoop(),
 	}
@@ -35,7 +34,7 @@ func New(c ...Config) *FS {
 // Root satisfies the the fuse/fs FS interface.
 func (f *FS) Root() (fs.Node, error) {
 	if f.root == nil {
-		f.root = f.RootFn(f.Xandle, f.RootPath)
+		f.root = f.RootFn(f.state, f.RootPath)
 		for _, m := range f.Mountable {
 			err := Attach(m, f.root)
 			if err != nil {

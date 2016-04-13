@@ -24,10 +24,8 @@ func NewNodeFile(n Node) NodeFile {
 // Initialize prepares the NodeFile from the given string path and head Node.
 func (n *nodeFile) InitializeFile(path string, head Node) {
 	n.SetPath(path)
-	n.SetHead(head)
-	n.SetXandle(head.Xandle())
-	n.SetWindow(head.Window())
-	n.Init(n.CurrentHeader())
+	n.SetState(head.Current())
+	n.Init(n.Current())
 }
 
 // Attr satisfies the fuse/fs Node interface for NodeFile.

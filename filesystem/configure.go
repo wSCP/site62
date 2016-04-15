@@ -144,7 +144,6 @@ func MountPoint(path string) Config {
 }
 
 func defaultX() x.Handle {
-	//es := filepath.Join(f.RootPath, "event")
 	h, err := x.New("")
 	if err != nil {
 		panic(err)
@@ -185,7 +184,7 @@ func Logger(l *log.Logger) Config {
 }
 
 func windows(f *FS) error {
-	f.NewMounts("windows", "/", we.Block.Copy())
+	f.NewMounts("windows", "/", we.Block())
 	s := f.state
 	s.Extend(we.New(s.Conn(), s.Root()))
 	return nil

@@ -35,14 +35,14 @@ func getManager(s state.State) (*Manager, error) {
 	return nil, NoManager
 }
 
+var NoWindow error = errors.New("no window.")
+
 func getWindow(s state.State) (w.Window, error) {
 	if m, err := getManager(s); err == nil {
 		return m.getWindow(s.Identity())
 	}
-	return nil, NoManager
+	return nil, NoWindow
 }
-
-var NoWindow error = errors.New("no window.")
 
 func (m *Manager) getWindow(id string) (w.Window, error) {
 	if w, exists := m.m[id]; exists {

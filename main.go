@@ -1,4 +1,3 @@
-//go:generate extension
 package main
 
 import (
@@ -8,7 +7,6 @@ import (
 	"path/filepath"
 
 	"github.com/wSCP/site62/filesystem"
-	//"github.com/wSCP/site62/extensions"
 )
 
 var c *configuration
@@ -31,7 +29,6 @@ func init() {
 	flag.StringVar(&c.mountPoint, "mount", "/tmp/site62", "A string path to mount the file system to.")
 	flag.Parse()
 	c.parse()
-	//extensions.Register()
 }
 
 var l = log.New(os.Stderr, "site62: ", log.Lmicroseconds|log.Llongfile)

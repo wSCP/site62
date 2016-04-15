@@ -1,5 +1,22 @@
 package extension
 
+type Functions interface {
+	Add(...Function)
+	Functions() []Function
+}
+
+type functions struct {
+	functions []Function
+}
+
+func (f *functions) Add(fns ...Function) {
+	f.functions = append(f.functions, fns...)
+}
+
+func (f *functions) Functions() []Function {
+	return f.functions
+}
+
 type Function interface {
 	Key() string
 	Value() interface{}

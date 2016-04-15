@@ -1,67 +1,52 @@
 package extension
 
-import "reflect"
+import (
+	"reflect"
+)
+
+type Inserter interface {
+	Insert(...interface{})
+}
+
+type Extender interface {
+	Extend(...Extension)
+	ExtendFunctions(...Function)
+}
 
 type Extension interface {
 	Tag() string
-	Insert(...interface{})
-	Run(string, ...interface{}) (interface{}, error)
-	MustRun(string, ...interface{}) interface{}
-	SetExtensionFunctions(...Function)
-	Extend(...Extension)
-	All() []Function
-	Returns
+	Extender
+	Functions
+	Inserter
+	Runner
 }
 
 func New(tag string, fns ...Function) Extension {
 	e := &extension{
-		tag:        tag,
-		extensions: make(map[string]reflect.Value),
+		tag:       tag,
+		functions: &functions{},
+		holds:     make(map[string]reflect.Value),
 	}
-	e.SetExtensionFunctions(fns...)
-	e.Returns = &returns{e}
+	e.ExtendFunctions(fns...)
+	e.runner = newRunner(e)
 	return e
 }
 
 type extension struct {
-	tag        string
-	inserts    []interface{}
-	extensions map[string]reflect.Value
-	functions  []Function
-	Returns
+	tag     string
+	inserts []interface{}
+	holds   map[string]reflect.Value
+	*functions
+	*runner
 }
 
 func (e *extension) Tag() string {
 	return e.tag
 }
 
-func (e *extension) Insert(args ...interface{}) {
-	e.inserts = args
-}
-
-func (e *extension) Run(fnName string, arg ...interface{}) (interface{}, error) {
-	if fn, ok := e.extensions[fnName]; ok {
-		var args []interface{}
-		args = append(args, e.inserts...)
-		args = append(args, arg...)
-		return call(fn, args...)
-	}
-	return nil, NotAnExtension(fnName)
-}
-
-func (e *extension) MustRun(fnName string, arg ...interface{}) interface{} {
-	var ret interface{}
-	var err error
-	if ret, err = e.Run(fnName, arg...); err != nil {
-		panic(err.Error())
-	}
-	return ret
-}
-
-func (e *extension) SetExtensionFunctions(fns ...Function) {
-	for _, fn := range fns {
-		e.extensions[fn.Key()] = valueFunc(fn.Value())
-		e.functions = append(e.functions, fn)
+func (e *extension) Extend(extensions ...Extension) {
+	for _, extension := range extensions {
+		e.ExtendFunctions(extension.Functions()...)
 	}
 }
 
@@ -86,12 +71,13 @@ func valueFunc(fn interface{}) reflect.Value {
 	return v
 }
 
-func (e *extension) Extend(extensions ...Extension) {
-	for _, extension := range extensions {
-		e.SetExtensionFunctions(extension.All()...)
+func (e *extension) ExtendFunctions(fns ...Function) {
+	for _, fn := range fns {
+		e.holds[fn.Key()] = valueFunc(fn.Value())
+		e.Add(fn)
 	}
 }
 
-func (e *extension) All() []Function {
-	return e.functions
+func (e *extension) Insert(args ...interface{}) {
+	e.inserts = args
 }
